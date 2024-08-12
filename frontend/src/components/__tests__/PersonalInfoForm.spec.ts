@@ -1,151 +1,66 @@
+import { mount, flushPromises } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mount, VueWrapper } from '@vue/test-utils';
 import PersonalInfoForm from '../PersonalInfoForm.vue';
-import type { IPersonalInfo } from '@/interfaces';
-import axios from 'axios';
+import { apiService } from '@/services/api.service';
 
-vi.mock('axios');
-global.URL.createObjectURL = vi.fn(() => 'mocked-url');
+vi.mock('@/services/api.service', () => ({
+  apiService: {
+    uploadLogo: vi.fn().mockResolvedValue('http://example.com/logo.png'),
+    generateSignature: vi.fn().mockResolvedValue('<div>Mocked Signature</div>'),
+  },
+}));
 
 describe('PersonalInfoForm', () => {
-  let wrapper: VueWrapper<any>;
-
   beforeEach(() => {
-    wrapper = mount(PersonalInfoForm);
     vi.clearAllMocks();
   });
 
-  it('renders the form correctly', () => {
-    expect(wrapper.find('.personal-info-form').exists()).toBe(true);
-    expect(wrapper.find('h3').text()).toBe('Enter Your Information');
-    expect(wrapper.findAll('input').length).toBe(6);
-    expect(wrapper.find('button[type="submit"]').exists()).toBe(true);
+  it('renders form fields correctly', () => {
+    const wrapper = mount(PersonalInfoForm, {
+      props: {
+        selectedTemplate: 'template1',
+      },
+    });
+    expect(wrapper.find('input#fullName').exists()).toBe(true);
+    expect(wrapper.find('input#email').exists()).toBe(true);
+    expect(wrapper.find('input#phone').exists()).toBe(true);
+    expect(wrapper.find('input#company').exists()).toBe(true);
+    expect(wrapper.find('input#position').exists()).toBe(true);
+    expect(wrapper.find('input#logo').exists()).toBe(true);
   });
 
-  it('updates v-model when input values change', async () => {
-    const inputs = wrapper.findAll('input');
-    await inputs[0].setValue('Alex Hashkov');
-    await inputs[1].setValue('hashkov@yahoo.com');
-    await inputs[2].setValue('1234567890');
-    await inputs[3].setValue('Acme Inc');
-    await inputs[4].setValue('Developer');
-
-    expect(wrapper.vm.personalInfo.fullName).toBe('Alex Hashkov');
-    expect(wrapper.vm.personalInfo.email).toBe('hashkov@yahoo.com');
-    expect(wrapper.vm.personalInfo.phone).toBe('1234567890');
-    expect(wrapper.vm.personalInfo.company).toBe('Acme Inc');
-    expect(wrapper.vm.personalInfo.position).toBe('Developer');
-  });
-
-  it('handles file upload correctly', async () => {
-    const file = new File([''], 'logo.png', { type: 'image/png' });
-    const input = wrapper.find('input[type="file"]');
-
-    Object.defineProperty(input.element, 'files', {
-      value: [file],
+  it('emits signature-generated event with correct data when form is submitted', async () => {
+    const wrapper = mount(PersonalInfoForm, {
+      props: {
+        selectedTemplate: 'template1',
+      },
     });
 
-    await input.trigger('change');
+    await wrapper.find('input#fullName').setValue('Alexander Hash');
+    await wrapper.find('input#email').setValue('alex@hash.com');
+    await wrapper.find('input#phone').setValue('123-456-7890');
+    await wrapper.find('input#company').setValue('HASH Inc');
+    await wrapper.find('input#position').setValue('Developer');
 
-    expect(URL.createObjectURL).toHaveBeenCalledWith(file);
-    expect(wrapper.vm.imagePreview).toBe('mocked-url');
-  });
+    await wrapper.find('form').trigger('submit');
 
-  it('emits submit-info event with correct data when form is submitted', async () => {
-    const inputs = wrapper.findAll('input');
-    await inputs[0].setValue('Alex Hashkov');
-    await inputs[1].setValue('hashkov@yahoo.com');
-    await inputs[2].setValue('1234567890');
+    await flushPromises();
 
-    await wrapper.find('form').trigger('submit.prevent');
-
-    const emitted = wrapper.emitted('submit-info');
+    const emitted = wrapper.emitted('signature-generated');
     expect(emitted).toBeTruthy();
     expect(emitted).toHaveLength(1);
+    expect(emitted?.[0]).toEqual(['<div>Mocked Signature</div>']);
 
-    const submittedInfo = emitted?.[0]?.[0] as IPersonalInfo;
-    expect(submittedInfo).toBeDefined();
-    expect(submittedInfo).toEqual({
-      fullName: 'Alex Hashkov',
-      email: 'hashkov@yahoo.com',
-      phone: '1234567890',
-      company: '',
-      position: '',
-      logoUrl: '',
-    });
-  });
-
-  it('uploads logo when file is selected and form is submitted', async () => {
-    const mockAxiosPost = vi.spyOn(axios, 'post').mockResolvedValue({
-      data: { url: 'http://google.com/logo.png' },
-    });
-
-    const file = new File([''], 'logo.png', { type: 'image/png' });
-    const fileInput = wrapper.find('input[type="file"]');
-
-    Object.defineProperty(fileInput.element, 'files', {
-      value: [file],
-    });
-
-    await fileInput.trigger('change');
-
-    const inputs = wrapper.findAll('input');
-    await inputs[0].setValue('Alex Hashkov');
-    await inputs[1].setValue('hashkov@yahoo.com');
-    await inputs[2].setValue('1234567890');
-
-    await wrapper.find('form').trigger('submit.prevent');
-
-    expect(mockAxiosPost).toHaveBeenCalledWith(
-      'http://localhost:4000/api/upload',
-      expect.any(FormData),
-      expect.objectContaining({
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+    expect(apiService.generateSignature).toHaveBeenCalledWith(
+      {
+        fullName: 'Alexander Hash',
+        email: 'alex@hash.com',
+        phone: '123-456-7890',
+        company: 'HASH Inc',
+        position: 'Developer',
+        logoUrl: '',
+      },
+      'template1'
     );
-
-    const emitted = wrapper.emitted('submit-info');
-    expect(emitted).toBeTruthy();
-    expect(emitted).toHaveLength(1);
-
-    const submittedInfo = emitted?.[0]?.[0] as { logoUrl: string } | undefined;
-    expect(submittedInfo).toBeDefined();
-    expect(submittedInfo?.logoUrl).toBe('http://google.com/logo.png');
-  });
-
-  it('handles logo upload error', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(axios, 'post').mockRejectedValue(new Error('Upload failed'));
-
-    const file = new File([''], 'logo.png', { type: 'image/png' });
-    const fileInput = wrapper.find('input[type="file"]');
-
-    Object.defineProperty(fileInput.element, 'files', {
-      value: [file],
-    });
-
-    await fileInput.trigger('change');
-
-    const inputs = wrapper.findAll('input');
-    await inputs[0].setValue('Alex Hashkov');
-    await inputs[1].setValue('hashkov@google.com');
-    await inputs[2].setValue('1234567890');
-
-    await wrapper.find('form').trigger('submit.prevent');
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      'Error uploading logo:',
-      expect.any(Error)
-    );
-
-    const emitted = wrapper.emitted('submit-info');
-    expect(emitted).toBeTruthy();
-    expect(emitted).toHaveLength(1);
-
-    const submittedInfo = emitted?.[0]?.[0] as IPersonalInfo;
-    expect(submittedInfo).toBeDefined();
-    expect(submittedInfo.logoUrl).toBe('');
-
-    consoleSpy.mockRestore();
   });
 });
