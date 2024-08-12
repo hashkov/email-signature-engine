@@ -5,6 +5,7 @@
     <div class="pages">
       <RouterView />
     </div>
+    <Loader />
   </div>
 </template>
 
@@ -12,8 +13,13 @@
 import { defineComponent, ref } from 'vue';
 import { RouterView } from 'vue-router';
 import Navbar from '@/components/Navbar.vue';
+import Loader from './components/Loader.vue';
 
 export default defineComponent({
   name: 'App',
+  components: {
+    Loader,
+    Navbar,
+  },
 });
 </script>

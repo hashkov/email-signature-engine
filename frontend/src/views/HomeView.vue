@@ -1,10 +1,8 @@
 <script lang="ts">
 import { defineComponent, ref } from 'vue';
-import axios from 'axios';
 import TemplateSelector from '@/components/TemplateSelector.vue';
 import PersonalInfoForm from '@/components/PersonalInfoForm.vue';
 import SignaturePreview from '@/components/SignaturePreview.vue';
-import type { IPersonalInfo } from '@/interfaces';
 
 export default defineComponent({
   name: 'HomeView',
@@ -14,28 +12,26 @@ export default defineComponent({
     SignaturePreview,
   },
   setup() {
-    const apiUrl = 'http://localhost:4000';
     const selectedTemplate = ref<string>('');
     const generatedSignature = ref<string>('');
-    const uploadedImageUrl = ref<string>('');
+    const error = ref<string>('');
 
-    const generateSignature = async (personalInfo: IPersonalInfo) => {
-      try {
-        const response = await axios.post(`${apiUrl}/api/signatures/generate`, {
-          templateName: selectedTemplate.value,
-          personalInfo,
-        });
+    const handleSignatureGenerated = (signature: string) => {
+      generatedSignature.value = signature;
+      error.value = '';
+    };
 
-        generatedSignature.value = response.data.signature;
-      } catch (error) {
-        console.error('Failed to generate signature:', error);
-      }
+    const handleError = (errorMessage: string) => {
+      error.value = errorMessage;
+      generatedSignature.value = '';
     };
 
     return {
       selectedTemplate,
       generatedSignature,
-      generateSignature,
+      error,
+      handleSignatureGenerated,
+      handleError,
     };
   },
 });
@@ -46,7 +42,10 @@ export default defineComponent({
     <signature-preview :signature="generatedSignature" />
     <div class="signature-configuration">
       <template-selector @select-template="selectedTemplate = $event" />
-      <personal-info-form @submit-info="generateSignature" />
+      <personal-info-form
+        :selectedTemplate="selectedTemplate"
+        @signature-generated="handleSignatureGenerated"
+      />
     </div>
   </main>
 </template>

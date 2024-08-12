@@ -13,7 +13,16 @@ export default defineConfig({
         target: 'http://localhost:4000',
         changeOrigin: true,
       },
+      '/api/upload': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
     },
+  },
+  define: {
+    'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
+      process.env.VITE_API_BASE_URL
+    ),
   },
   resolve: {
     alias: {

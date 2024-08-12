@@ -39,19 +39,28 @@
       <div v-if="imagePreview" class="image-preview">
         <img :src="imagePreview" alt="Logo preview" />
       </div>
-      <button type="submit">Generate Signature</button>
+      <button type="submit" :disabled="isSubmitDisabled">
+        Generate Signature
+      </button>
     </form>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, reactive, ref } from 'vue';
-import axios from 'axios';
+import { computed, defineComponent, reactive, ref } from 'vue';
+import { apiService } from '@/services/api.service';
+import type { IPersonalInfo } from '@/interfaces';
 
 export default defineComponent({
   name: 'PersonalInfoForm',
+  props: {
+    selectedTemplate: {
+      type: String,
+      required: true,
+    },
+  },
   setup(props, { emit }) {
-    const personalInfo = reactive({
+    const personalInfo = reactive<IPersonalInfo>({
       fullName: '',
       email: '',
       phone: '',
@@ -62,6 +71,13 @@ export default defineComponent({
 
     const imagePreview = ref('');
     const logoFile = ref<File | null>(null);
+    const isSubmitDisabled = computed(
+      () =>
+        !props.selectedTemplate ||
+        !personalInfo.fullName ||
+        !personalInfo.email ||
+        !personalInfo.phone
+    );
 
     const handleFileUpload = (event: Event) => {
       const target = event.target as HTMLInputElement;
@@ -72,28 +88,20 @@ export default defineComponent({
     };
 
     const submitForm = async () => {
-      if (personalInfo.fullName && personalInfo.email && personalInfo.phone) {
+      try {
         if (logoFile.value) {
-          const formData = new FormData();
-          formData.append('logo', logoFile.value);
-
-          try {
-            const response = await axios.post(
-              'http://localhost:4000/api/upload',
-              formData,
-              {
-                headers: {
-                  'Content-Type': 'multipart/form-data',
-                },
-              }
-            );
-            personalInfo.logoUrl = response.data.url;
-          } catch (error) {
-            console.error('Error uploading logo:', error);
-          }
+          personalInfo.logoUrl = await apiService.uploadLogo(logoFile.value);
+        } else {
+          console.log('No file selected');
         }
 
-        emit('submit-info', { ...personalInfo });
+        const signature = await apiService.generateSignature(
+          personalInfo,
+          props.selectedTemplate
+        );
+        emit('signature-generated', signature);
+      } catch (error) {
+        console.error('Error submitting form:', error);
       }
     };
 
@@ -102,11 +110,11 @@ export default defineComponent({
       submitForm,
       handleFileUpload,
       imagePreview,
+      isSubmitDisabled,
     };
   },
 });
 </script>
-
 <style scoped>
 label,
 input {
@@ -130,13 +138,18 @@ form button {
   border-radius: 4px;
   cursor: pointer;
 }
+button:disabled,
+button[disabled] {
+  border: 1px solid #999999;
+  background-color: #cccccc;
+  color: #666666;
+}
 input.error {
   border: 1px solid var(--error);
 }
 .image-preview {
   margin-top: 10px;
 }
-
 .image-preview img {
   max-width: 200px;
   max-height: 100px;

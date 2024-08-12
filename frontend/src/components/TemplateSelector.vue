@@ -1,28 +1,40 @@
 <template>
   <div class="template-selector">
-    <h3>Select a Template</h3>
+    <h2>Select a Template</h2>
     <select v-model="selectedTemplate" @change="emitSelectedTemplate">
       <option value="">Choose a template</option>
-      <option value="template1">Professional Template</option>
-      <option value="template2">Minimalist Template</option>
+      <option v-for="template in templates" :key="template" :value="template">
+        {{ template }}
+      </option>
     </select>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, onMounted } from 'vue';
+import { apiService } from '../services/api.service';
 
 export default defineComponent({
   name: 'TemplateSelector',
   setup(props, { emit }) {
     const selectedTemplate = ref('');
+    const templates = ref<string[]>([]);
 
     const emitSelectedTemplate = () => {
       emit('select-template', selectedTemplate.value);
     };
 
+    onMounted(async () => {
+      try {
+        templates.value = await apiService.getTemplates();
+      } catch (error) {
+        console.error('Error fetching templates:', error);
+      }
+    });
+
     return {
       selectedTemplate,
+      templates,
       emitSelectedTemplate,
     };
   },
