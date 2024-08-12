@@ -14,7 +14,7 @@ export default defineComponent({
     SignaturePreview,
   },
   setup() {
-    const apiUrl = import.meta.env.BASE_URL || 'http://localhost:4000';
+    const apiUrl = 'http://localhost:4000';
     const selectedTemplate = ref<string>('');
     const generatedSignature = ref<string>('');
     const uploadedImageUrl = ref<string>('');
@@ -32,16 +32,10 @@ export default defineComponent({
       }
     };
 
-    const handleImageUploaded = (imageUrl: string) => {
-      console.log(imageUrl);
-      uploadedImageUrl.value = imageUrl;
-    };
-
     return {
       selectedTemplate,
       generatedSignature,
       generateSignature,
-      handleImageUploaded,
     };
   },
 });
