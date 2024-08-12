@@ -14,7 +14,7 @@ export default defineComponent({
     SignaturePreview,
   },
   setup() {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    const apiUrl = import.meta.env.BASE_URL || 'http://localhost:4000';
     const selectedTemplate = ref<string>('');
     const generatedSignature = ref<string>('');
     const uploadedImageUrl = ref<string>('');
